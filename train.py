@@ -9,7 +9,8 @@ from matplotlib import pyplot
 
 from data_loader import H5Dataset
 from looper import Looper
-from model import UNet, FCRN_A
+from model import UNet, UNet_MC, FCRN_A, FCRN_A_MC
+from MC_DropOut import MC_DropOut, make_active_dropout
 
 
 @click.command()
@@ -18,12 +19,13 @@ from model import UNet, FCRN_A
               required=True,
               help='Dataset to train model on (expect proper HDF5 files).')
 @click.option('-n', '--network_architecture',
-              type=click.Choice(['UNet', 'FCRN_A']),
+              type=click.Choice(['UNet','UNet_MC', 'FCRN_A','FCRN_A_MC']),
               required=True,
               help='Model to train.')
 @click.option('-lr', '--learning_rate', default=1e-2,
               help='Initial learning rate (lr_scheduler is applied).')
 @click.option('-e', '--epochs', default=150, help='Number of training epochs.')
+
 @click.option('--batch_size', default=8,
               help='Batch size for both training and validation dataloaders.')
 @click.option('-hf', '--horizontal_flip', default=0.0,
@@ -34,6 +36,8 @@ from model import UNet, FCRN_A
               help='Number of filters for U-Net convolutional layers.')
 @click.option('--convolutions', default=2,
               help='Number of layers in a convolutional block.')
+@click.option('-p', '--dropout_prob',default=0.,
+              help='Probability in DropOut')              
 @click.option('--plot', is_flag=True, help="Generate a live plot.")
 def train(dataset_name: str,
           network_architecture: str,
@@ -44,11 +48,12 @@ def train(dataset_name: str,
           vertical_flip: float,
           unet_filters: int,
           convolutions: int,
+          dropout_prob: float,
           plot: bool):
     """Train chosen model on selected dataset."""
     # use GPU if avilable
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(device)
     dataset = {}     # training and validation HDF5-based datasets
     dataloader = {}  # training and validation dataloaders
 
@@ -68,10 +73,12 @@ def train(dataset_name: str,
     # initialize a model based on chosen network_architecture
     network = {
         'UNet': UNet,
-        'FCRN_A': FCRN_A
+        'UNet_MC': UNet_MC,
+        'FCRN_A': FCRN_A,
+        'FCRN_A_MC':FCRN_A_MC
     }[network_architecture](input_filters=input_channels,
                             filters=unet_filters,
-                            N=convolutions).to(device)
+                            N=convolutions,p=dropout_prob).to(device)
     network = torch.nn.DataParallel(network)
 
     # initialize loss, optimized and learning rate scheduler
@@ -83,6 +90,8 @@ def train(dataset_name: str,
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
                                                    step_size=20,
                                                    gamma=0.1)
+    # prob
+    prob_label='p='+str(dropout_prob)
 
     # if plot flag is on, create a live plot (to be updated by Looper)
     if plot:
@@ -93,11 +102,11 @@ def train(dataset_name: str,
 
     # create training and validation Loopers to handle a single epoch
     train_looper = Looper(network, device, loss, optimizer,
-                          dataloader['train'], len(dataset['train']), plots[0])
+                          dataloader['train'], len(dataset['train']), plots[0],True)
     valid_looper = Looper(network, device, loss, optimizer,
-                          dataloader['valid'], len(dataset['valid']), plots[1],
+                          dataloader['valid'], len(dataset['valid']), plots[1],True,
                           validation=True)
-
+   
     # current best results (lowest mean absolute error on validation set)
     current_best = np.infty
 
@@ -108,6 +117,7 @@ def train(dataset_name: str,
         train_looper.run()
         lr_scheduler.step()
 
+        
         # run validation epoch
         with torch.no_grad():
             result = valid_looper.run()
@@ -116,13 +126,35 @@ def train(dataset_name: str,
         if result < current_best:
             current_best = result
             torch.save(network.state_dict(),
-                       f'{dataset_name}_{network_architecture}.pth')
+                       f'{dataset_name}_{network_architecture}_{prob_label}.pth')
 
             print(f"\nNew best result: {result}")
 
         print("\n", "-"*80, "\n", sep='')
+        
+        if plot:
+            fig.savefig(f'status_{dataset_name}_{network_architecture}.png')
 
     print(f"[Training done] Best result: {current_best}")
+
+    #network.load_state_dict(torch.load(f'{dataset_name}_{network_architecture}_{prob_label}.pth'))
+
+
+    valid_looper_end = Looper(network, device, loss, optimizer,
+                          dataloader['valid'], len(dataset['valid']), None, True,
+                          validation=True)
+
+    
+    
+    train_looper_end = Looper(network, device, loss, optimizer,
+                          dataloader['train'], len(dataset['train']), None, True,
+                          validation=True)
+    make_active_dropout(network)
+
+
+    MC_DropOut(valid_looper_end, 100, network_architecture+'_'+prob_label,dataset_name + '_test_')        
+    MC_DropOut(train_looper_end, 100, network_architecture+'_'+prob_label,dataset_name + '_train_')
+
 
 if __name__ == '__main__':
     train()
