@@ -34,9 +34,15 @@ Two network architectures are available so far:
 
     Ronneberger, Olaf, Philipp Fischer, and Thomas Brox. "U-net: Convolutional networks for biomedical image segmentation." In International Conference on Medical image computing and computer-assisted intervention, pp. 234-241. Springer, Cham, 2015.
 
+* U-Net-MC
+    The same as above but afer each layer DropOut Layer with probability p is given, except last layer.
+
 * FCRN-A
 
     Weidi, Xie, J. Alison Noble, and Andrew Zisserman. "Microscopy cell counting with fully convolutional regression networks." In 1st Deep Learning Workshop, Medical Image Computing and Computer-Assisted Intervention (MICCAI). 2015.
+
+* FCRN-A-MC
+    The same as above but afer each layer DropOut Layer with probability p is given, except last layer.
 
 One can use `train.py` script to train chosen network on selected dataset:
 
@@ -49,7 +55,7 @@ Options:
   -d, --dataset_name [cell|mall|ucsd]
                                   Dataset to train model on (expect proper
                                   HDF5 files).  [required]
-  -n, --network_architecture [UNet|FCRN_A]
+  -n, --network_architecture [UNet|FCRN_A|FCRN_A_MC]
                                   Model to train.  [required]
   -lr, --learning_rate FLOAT      Initial learning rate (lr_scheduler is
                                   applied).
@@ -63,7 +69,11 @@ Options:
   --unet_filters INTEGER          Number of filters for U-Net convolutional
                                   layers.
   --convolutions INTEGER          Number of layers in a convolutional block.
+  
+  -p, '--dropout_prob'            DropOut probability.
+  
   --plot                          Generate a live plot.
+
   --help                          Show this message and exit.
 ```
 

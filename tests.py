@@ -17,12 +17,10 @@ def make_plots_with_errors(ps,type_,model_name,dirr):
 
     pliki = [nazwa_beg+model_name+end1+str(p)+'.csv' for p in ps]
 
-    #print(pliki)
+    print(pliki)
 
     results = [ np.genfromtxt (name, delimiter=",") for name in pliki]
     
-    #np.load('error_cell_test')
-
 
     fig, axes  = plt.subplots(1, 2, figsize=(10.5,5))
 
@@ -51,9 +49,10 @@ def make_plots_with_errors(ps,type_,model_name,dirr):
         axes[1].scatter(np.arange(N)+1,100*results[i+1][:,2]/results[i+1][:,1],label="p="+str(ps[i+1]),marker='.')
     fig.tight_layout()
     fig.savefig('with_errors_'+ type_+ '_'+model_name+'.png')
+    print('hej')
 
-
-    fig2, axes2  = plt.subplots(1, 5, figsize=(16,5))
+    fig2, axes2  = plt.subplots(2, 3, figsize=(16,10))
+    axes2 = axes2.flatten()
     for i in range(len(ps)-1):
         print(i)
         axes2[i].set_xlabel('uncertainty ($\%$)')
@@ -64,13 +63,13 @@ def make_plots_with_errors(ps,type_,model_name,dirr):
         axes2[i].hist(100*results[i+1][:,2]/results[i+1][:,1], bins=15)
     fig2.tight_layout()
     fig2.savefig('hist_'+ type_+ '_'+model_name+'.png')
-
+    
     os.chdir("..")
 
 model_name = "FCRN_A"
 type_ = 'test'
 
-ps= [0.0,0.1,0.2,0.3,0.4,0.6]
+ps= [0.0,0.1,0.2,0.3,0.4, 0.5, 0.6]
 make_plots_with_errors(ps,'test',"FCRN_A","results")
 make_plots_with_errors(ps,'train',"FCRN_A","results")
 

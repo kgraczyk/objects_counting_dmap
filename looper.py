@@ -17,6 +17,7 @@ class Looper():
                  data_loader: torch.utils.data.DataLoader,
                  dataset_size: int,
                  plots: Optional[matplotlib.axes.Axes]=None,
+                 MC: bool=True,
                  validation: bool=False):
         """
         Initialize Looper.
@@ -41,6 +42,7 @@ class Looper():
         self.validation = validation
         self.plots = plots
         self.running_loss = []
+        self.MC = MC
 
     def run(self):
         """Run a single epoch loop.
@@ -54,7 +56,14 @@ class Looper():
         self.running_loss.append(0)
 
         # set a proper mode: train or eval
+         
+        
         self.network.train(not self.validation)
+
+        if self.MC:
+            for m in self.network.modules():
+                if m.__class__.__name__.startswith('Dropout'):
+                    m.train() 
 
         for image, label in self.loader:
             # move images and labels to given device
@@ -115,6 +124,7 @@ class Looper():
 
     def plot(self):
         """Plot true vs predicted counts and loss."""
+        #print("Plot true vs predicted counts and loss.")
         # true vs predicted counts
         true_line = [[0, max(self.true_values)]] * 2  # y = x
         self.plots[0].cla()
