@@ -3,12 +3,14 @@ import matplotlib.pyplot as plt
 import pylab as plb
 import math
 import os
+from os import listdir
+from os.path import isfile, join
+
 plb.rcParams['font.size'] = 12
 
 
 
 
-ps=[0.0,0.1]
 def make_plots_with_errors(ps,type_,model_name,dirr):
     nazwa_beg  = "error_cell_"+ type_ +"__"
     end1       = "_MC_p="
@@ -66,12 +68,45 @@ def make_plots_with_errors(ps,type_,model_name,dirr):
     
     os.chdir("..")
 
+def plot_history(folder_,data, net):
+    begin_ = 'hist_test_'+data+'_'+net
+    beginr_ = 'hist_train_'+data+'_'+net
+
+    filest = np.sort(np.asarray([join(folder_, f) for f in listdir(folder_) if isfile(join(folder_, f)) if f.startswith(begin_)]))
+    filesr = np.sort(np.asarray([join(folder_, f) for f in listdir(folder_) if isfile(join(folder_, f)) if f.startswith(beginr_)]))
+    
+
+    fig, axes = plt.subplots(1,2, figsize=(10,5))
+    axes[0].set_title( net+', '+data+' test set')
+    
+    for name in filest:
+        hist = np.genfromtxt(name, delimiter=",") 
+        axes[0].plot(np.arange(len(hist))+1, hist[:,0],label=name.split('.csv')[0][-5:] )
+    
+
+    for name in filesr:
+        hist = np.genfromtxt(name, delimiter=",") 
+        axes[1].plot(np.arange(len(hist))+1, hist[:,0], label=name.split('.csv')[0][-5:] )
+
+    for i in range(2):
+        axes[i].set_yscale('log')
+        axes[i].set_xlabel('epochs')
+        if i != 1: axes[i].set_ylabel('loss')
+        axes[i].legend()
+    
+    fig.tight_layout()
+    fig.savefig(f'history_{data}_{net}.png')
+
+
 model_name = "FCRN_A"
 type_ = 'test'
 
 ps= [0.0,0.1,0.2,0.3,0.4, 0.5, 0.6]
-make_plots_with_errors(ps,'test',"FCRN_A","results")
-make_plots_with_errors(ps,'train',"FCRN_A","results")
+#make_plots_with_errors(ps,'test',"FCRN_A","results")
+#make_plots_with_errors(ps,'train',"FCRN_A","results")
 
-make_plots_with_errors(ps,'test',"UNet","results")
-make_plots_with_errors(ps,'train',"UNet","results")
+#make_plots_with_errors(ps,'test',"UNet","results")
+#make_plots_with_errors(ps,'train',"UNet","results")
+
+plot_history('results','cell','FCRN_A_MC')
+plot_history('results','cell','UNet_MC')

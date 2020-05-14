@@ -91,7 +91,13 @@ def train(dataset_name: str,
                                                    step_size=20,
                                                    gamma=0.1)
     # prob
-    prob_label='p='+str(dropout_prob)
+    epochs__          = 'epochs='+str(epochs)
+    batch_size__      = 'batch='+str(batch_size)
+    horizontal_flip__ = 'hf='+str(horizontal_flip)
+    vertical_flip__   = 'vf=' + str(vertical_flip)
+    unet_filters__    = 'uf=' + str(unet_filters)
+    convolutions__    = "conv"+str(convolutions)
+    prob_label        = 'p='+str(dropout_prob)
 
     # if plot flag is on, create a live plot (to be updated by Looper)
     if plot:
@@ -103,10 +109,14 @@ def train(dataset_name: str,
     # create training and validation Loopers to handle a single epoch
     train_looper = Looper(network, device, loss, optimizer,
                           dataloader['train'], len(dataset['train']), plots[0],True)
+ 
     valid_looper = Looper(network, device, loss, optimizer,
                           dataloader['valid'], len(dataset['valid']), plots[1],True,
                           validation=True)
    
+    train_looper.LOG=False
+    valid_looper.LOG=False
+
     # current best results (lowest mean absolute error on validation set)
     current_best = np.infty
 
@@ -117,7 +127,6 @@ def train(dataset_name: str,
         train_looper.run()
         lr_scheduler.step()
 
-        
         # run validation epoch
         with torch.no_grad():
             result = valid_looper.run()
@@ -126,34 +135,52 @@ def train(dataset_name: str,
         if result < current_best:
             current_best = result
             torch.save(network.state_dict(),
-                       f'{dataset_name}_{network_architecture}_{prob_label}.pth')
+                       f'{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}.pth')
+            hist = []
+            hist.append(valid_looper.history[-1])
+            hist.append(train_looper.history[-1])
+            hist = np.array(hist)
+            print(hist)
+            np.savetxt(f'hist_best_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}.csv' 
+                        ,hist, delimiter=',')
+    
 
             print(f"\nNew best result: {result}")
 
         print("\n", "-"*80, "\n", sep='')
         
         if plot:
-            fig.savefig(f'status_{dataset_name}_{network_architecture}.png')
+            fig.savefig(f'status_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}.png')
 
     print(f"[Training done] Best result: {current_best}")
 
-    #network.load_state_dict(torch.load(f'{dataset_name}_{network_architecture}_{prob_label}.pth'))
+    hist = np.array(train_looper.history)
+    np.savetxt(f'hist_train_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}.csv' ,hist,delimiter=',')
+    hist = np.array(valid_looper.history)
+    np.savetxt(f'hist_test_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}.csv' , hist,delimiter=',')
 
 
-    valid_looper_end = Looper(network, device, loss, optimizer,
-                          dataloader['valid'], len(dataset['valid']), None, True,
-                          validation=True)
 
+    train_looper.plots = None
+    train_looper.validation = True
+    train_looper.LOG = False
+    #valid_looper_end = Looper(network, device, loss, optimizer,
+    #                      dataloader['valid'], len(dataset['valid']), None, True,
+    #                      validation=True)
+    valid_looper.plots = None
+    valid_looper.validation = True
+    valid_looper.LOG = False
+  
+        
+    #train_looper_end = Looper(network, device, loss, optimizer,
+    #                      dataloader['train'], len(dataset['train']), None, True,
+    #                      validation=True)
     
-    
-    train_looper_end = Looper(network, device, loss, optimizer,
-                          dataloader['train'], len(dataset['train']), None, True,
-                          validation=True)
     make_active_dropout(network)
 
 
-    MC_DropOut(valid_looper_end, 100, network_architecture+'_'+prob_label,dataset_name + '_test_')        
-    MC_DropOut(train_looper_end, 100, network_architecture+'_'+prob_label,dataset_name + '_train_')
+    MC_DropOut(valid_looper, 100, network_architecture+'_'+prob_label,dataset_name + '_test_')        
+    MC_DropOut(train_looper, 100, network_architecture+'_'+prob_label,dataset_name + '_train_')
 
 
 if __name__ == '__main__':

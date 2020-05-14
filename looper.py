@@ -43,6 +43,8 @@ class Looper():
         self.plots = plots
         self.running_loss = []
         self.MC = MC
+        self.history = []
+        self.LOG = True
 
     def run(self):
         """Run a single epoch loop.
@@ -54,6 +56,7 @@ class Looper():
         self.true_values = []
         self.predicted_values = []
         self.running_loss.append(0)
+        #self.history.append(0)
 
         # set a proper mode: train or eval
          
@@ -106,7 +109,7 @@ class Looper():
             self.plot()
 
         # print epoch summary
-        self.log()
+        if self.LOG : self.log()
 
         return self.mean_abs_err
 
@@ -121,6 +124,10 @@ class Looper():
         self.mean_err = sum(self.err) / self.size
         self.mean_abs_err = sum(self.abs_err) / self.size
         self.std = np.array(self.err).std()
+        temp  = [self.running_loss[-1], self.mean_err, self.mean_abs_err, self.std]
+        #print('temp = ', temp)
+        self.history.append(temp)
+        
 
     def plot(self):
         """Plot true vs predicted counts and loss."""
