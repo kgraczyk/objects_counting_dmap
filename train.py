@@ -39,6 +39,7 @@ from MC_DropOut import MC_DropOut, make_active_dropout
 @click.option('-p', '--dropout_prob',default=0.,
               help='Probability in DropOut')              
 @click.option('--plot', is_flag=True, help="Generate a live plot.")
+
 def train(dataset_name: str,
           network_architecture: str,
           learning_rate: float,
@@ -108,13 +109,13 @@ def train(dataset_name: str,
 
     # create training and validation Loopers to handle a single epoch
     train_looper = Looper(network, device, loss, optimizer,
-                          dataloader['train'], len(dataset['train']), plots[0],True)
+                          dataloader['train'], len(dataset['train']), plots[0],False)
  
     valid_looper = Looper(network, device, loss, optimizer,
-                          dataloader['valid'], len(dataset['valid']), plots[1],True,
+                          dataloader['valid'], len(dataset['valid']), plots[1],False,
                           validation=True)
    
-    train_looper.LOG=False
+    train_looper.LOG=True
     valid_looper.LOG=False
 
     # current best results (lowest mean absolute error on validation set)
@@ -139,8 +140,8 @@ def train(dataset_name: str,
             hist = []
             hist.append(valid_looper.history[-1])
             hist.append(train_looper.history[-1])
-            hist = np.array(hist)
-            print(hist)
+            #hist = np.array(hist)
+            #print(hist)
             np.savetxt(f'hist_best_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}.csv' 
                         ,hist, delimiter=',')
     
@@ -154,34 +155,27 @@ def train(dataset_name: str,
 
     print(f"[Training done] Best result: {current_best}")
 
+    print('hej-2')
+
     hist = np.array(train_looper.history)
     np.savetxt(f'hist_train_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}.csv' ,hist,delimiter=',')
     hist = np.array(valid_looper.history)
     np.savetxt(f'hist_test_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}.csv' , hist,delimiter=',')
 
 
-
     train_looper.plots = None
     train_looper.validation = True
     train_looper.LOG = False
-    #valid_looper_end = Looper(network, device, loss, optimizer,
-    #                      dataloader['valid'], len(dataset['valid']), None, True,
-    #                      validation=True)
+    
     valid_looper.plots = None
     valid_looper.validation = True
     valid_looper.LOG = False
-  
-        
-    #train_looper_end = Looper(network, device, loss, optimizer,
-    #                      dataloader['train'], len(dataset['train']), None, True,
-    #                      validation=True)
     
-    make_active_dropout(network)
-
-
-    MC_DropOut(valid_looper, 100, network_architecture+'_'+prob_label,dataset_name + '_test_')        
-    MC_DropOut(train_looper, 100, network_architecture+'_'+prob_label,dataset_name + '_train_')
-
+    NETname=network_architecture+'_'+prob_label
+    DATAname = dataset_name + '_train_'
+    train_looper.MCdropOut(100, NETname, DATAname )
+    DATAname = dataset_name + '_test_'
+    valid_looper.MCdropOut(100, NETname, DATAname )
 
 if __name__ == '__main__':
     train()

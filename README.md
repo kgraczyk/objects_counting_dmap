@@ -70,7 +70,7 @@ Options:
                                   layers.
   --convolutions INTEGER          Number of layers in a convolutional block.
   
-  -p, '--dropout_prob'            DropOut probability.
+  -p, --dropout_prob              DropOut probability.
   
   --plot                          Generate a live plot.
 

@@ -4,6 +4,7 @@ from typing import Optional, List
 import torch
 import numpy as np
 import matplotlib
+from matplotlib import pyplot
 
 
 class Looper():
@@ -17,7 +18,7 @@ class Looper():
                  data_loader: torch.utils.data.DataLoader,
                  dataset_size: int,
                  plots: Optional[matplotlib.axes.Axes]=None,
-                 MC: bool=True,
+                 MC: bool=False,
                  validation: bool=False):
         """
         Initialize Looper.
@@ -60,23 +61,27 @@ class Looper():
 
         # set a proper mode: train or eval
          
-        
         self.network.train(not self.validation)
+        
+        #print("echo")
 
         if self.MC:
             for m in self.network.modules():
                 if m.__class__.__name__.startswith('Dropout'):
                     m.train() 
+        #print("echo2")
 
         for image, label in self.loader:
             # move images and labels to given device
             image = image.to(self.device)
             label = label.to(self.device)
-
+        
+            #print("echo3")
             # clear accumulated gradient if in train mode
             if not self.validation:
-                self.optimizer.zero_grad()
-
+                if not self.MC:
+                    self.optimizer.zero_grad()
+            #print("echo4")    
             # get model prediction (a density map)
             result = self.network(image)
 
@@ -86,8 +91,9 @@ class Looper():
 
             # update weights if in train mode
             if not self.validation:
-                loss.backward()
-                self.optimizer.step()
+                if not self.MC:
+                    loss.backward()
+                    self.optimizer.step()
 
             # loop over batch samples
             for true, predicted in zip(label, result):
@@ -159,3 +165,53 @@ class Looper():
               f"\tMean error: {self.mean_err:3.3f}\n"
               f"\tMean absolute error: {self.mean_abs_err:3.3f}\n"
               f"\tError deviation: {self.std:3.3f}")
+
+    def MCdropOut(self,NN, network_architecture, dataset_name):
+
+        self.plots = None
+        self.validation = True
+        self.LOG = False
+        self.MC  = True
+        
+        
+        
+        self.run()
+        
+
+        Predicted__values   = np.array(self.predicted_values)
+        Predicted__values2  = np.power(Predicted__values,2)
+
+        print('hej')
+
+        for _ in range(NN):
+            print('hej 0')
+            self.run()
+            temp   = np.array(self.predicted_values)
+            #print("NN = ",NN)
+            Predicted__values   += temp
+            Predicted__values2  += np.power(temp,2)
+
+        Predicted__values  = Predicted__values/(NN+1)
+        Predicted__values2 = Predicted__values2/(NN+1)
+
+        error = np.around(Predicted__values2 - np.power(Predicted__values,2),decimals=6)
+    
+
+        error = np.sqrt(error)
+        #print(np.sqrt(Predicted__values2[0]))
+    
+        true_line = [[0, max(self.true_values)]] * 2  # y = x
+        figg, axes = pyplot.subplots()
+
+        axes.set_xlabel('True value')
+        axes.set_ylabel('Predicted value')
+        axes.plot(*true_line, 'r-')
+        axes.errorbar(self.true_values,Predicted__values, error,fmt='.k',ecolor='red')
+
+        matplotlib.pyplot.pause(0.01)
+        matplotlib.pyplot.tight_layout()
+
+        figg.savefig(f'error_{dataset_name}_{network_architecture}.png')
+
+        result = np.stack((self.true_values,Predicted__values, error),-1)
+        np.savetxt(f'error_{dataset_name}_{network_architecture}.csv',result, delimiter=',')
