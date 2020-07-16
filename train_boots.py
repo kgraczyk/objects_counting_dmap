@@ -14,7 +14,7 @@ from model import UNet,  FCRN_A
 
 @click.command()
 @click.option('-d', '--dataset_name',
-              type=click.Choice(['cell', 'mall', 'ucsd']),
+              type=click.Choice(['cell', 'mall', 'ucsd','nocover']),
               required=True,
               help='Dataset to train model on (expect proper HDF5 files).')
 @click.option('-n', '--network_architecture',
@@ -35,8 +35,9 @@ from model import UNet,  FCRN_A
               help='Number of filters for U-Net convolutional layers.')
 @click.option('--convolutions', default=2,
               help='Number of layers in a convolutional block.')            
+@click.option('-b','--boots', default=10,
+              help="Number of bootstrap copies")
 @click.option('--plot', is_flag=True, help="Generate a live plot.")
-
 def train_boots(dataset_name: str,
           network_architecture: str,
           learning_rate: float,
@@ -46,6 +47,7 @@ def train_boots(dataset_name: str,
           vertical_flip: float,
           unet_filters: int,
           convolutions: int,
+          boots: int,
           plot: bool):
     """Train chosen model on selected dataset."""
     # use GPU if avilable
@@ -58,24 +60,11 @@ def train_boots(dataset_name: str,
     # only UCSD dataset provides greyscale images instead of RGB
     input_channels = 1 if dataset_name == 'ucsd' else 3
     
-    # initialize a model based on chosen network_architecture
-    network = {
-        'UNet': UNet,
-        'FCRN_A': FCRN_A,
-    }[network_architecture](input_filters=input_channels,
-                            filters=unet_filters,
-                            N=convolutions,p=0).to(device)
-    network = torch.nn.DataParallel(network)
+    
 
     # initialize loss, optimized and learning rate scheduler
     loss = torch.nn.MSELoss()
-    optimizer = torch.optim.SGD(network.parameters(),
-                                lr=learning_rate,
-                                momentum=0.9,
-                                weight_decay=1e-5)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
-                                                   step_size=20,
-                                                   gamma=0.1)
+    
     # prob
     epochs__          = 'epochs='+str(epochs)
     batch_size__      = 'batch='+str(batch_size)
@@ -107,11 +96,32 @@ def train_boots(dataset_name: str,
     n_samples = len(dataset['train'])
         
     #print("******", n_samples)
-    sampling_ratio = int(0.69*n_samples)
+    sampling_ratio = int(0.632*n_samples)
+    # size of the fraction based on the work: arXiv:1612.01474
     results_train = []
+    results_train_full = []
     results_test = []
     
-    for i in range(2):
+    for i in range(boots):
+
+        # initialize a model based on chosen network_architecture
+        network = {
+        'UNet': UNet,
+        'FCRN_A': FCRN_A,
+        }[network_architecture](input_filters=input_channels,
+                            filters=unet_filters,
+                            N=convolutions,p=0).to(device)
+        network = torch.nn.DataParallel(network)
+
+        optimizer = torch.optim.SGD(network.parameters(),
+                                lr=learning_rate,
+                                momentum=0.9,
+                                weight_decay=1e-5)
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
+                                                   step_size=20,
+                                                   gamma=0.1)
+
+
         ntrain   = torch.randperm(n_samples)[:sampling_ratio]
         #print("xx ",np.sort(ntrain.numpy()))
         
@@ -172,27 +182,71 @@ def train_boots(dataset_name: str,
             if plot:
                 fig.savefig(os.path.join(dirr,f'status_boot_i={i}_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.png'))
 
-        if i: 
+        train_looper.plots = None
+        train_looper.validation = True
+        train_looper.LOG = False
+        train_looper.MC = False
+    
+        valid_looper.plots = None
+        valid_looper.validation = True
+        valid_looper.LOG = False
+        train_looper.MC = False
+
+
+
+        with torch.no_grad():
+                valid_looper.run()
+                train_looper.run()
+
+        
+        loader = torch.utils.data.DataLoader(dataset['train'],
+                                                       batch_size=batch_size)
+        true_values = []
+        predicted_values = []
+        network.eval()
+        for image, label in loader:
+            # move images and labels to given device
+            image = image.to(device)
+            label = label.to(device)
+            result = network(image)
+        
+            for true, predicted in zip(label, result):
+                # integrate a density map to get no. of objects
+                # note: density maps were normalized to 100 * no. of objects
+                #       to make network learn better
+                true_counts = torch.sum(true).item() / 100
+                predicted_counts = torch.sum(predicted).item() / 100
+                true_values.append(true_counts)
+                predicted_values.append(predicted_counts)
+
+        if i==0: 
             results_train.append(train_looper.true_values)
+            results_train_full.append(true_values)
             results_test.append(valid_looper.true_values) 
 
 
+        results_train_full.append(predicted_values)
         results_train.append(train_looper.predicted_values)
         results_test.append(valid_looper.predicted_values)
-        
-        
+
         print(f"[Training done] Best result: {current_best}")
 
         
         hist = np.array(train_looper.history)
-        np.savetxt(os.path.join(dirr,f'hist_train_boot_i={i}_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.csv') ,hist,delimiter=',')
+        np.savetxt(os.path.join(dirr,f'hist_train_boot_{dataset_name}_{network_architecture}_i={i}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.csv') ,hist,delimiter=',')
         hist = np.array(valid_looper.history)
-        np.savetxt(os.path.join(dirr,f'hist_test_boot_i={i}_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.csv') , hist,delimiter=',')
+        np.savetxt(os.path.join(dirr,f'hist_test_boot_{dataset_name}_{network_architecture}_i={i}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.csv') , hist,delimiter=',')
 
     results_train=np.array(results_train)
     results_train = results_train.transpose()
-    np.savetxt(os.path.join(dirr,f'predicted_train_best_boot_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.csv') 
+    np.savetxt(os.path.join(dirr,f'predicted_train_par_best_boot_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.csv') 
                         ,results_train, delimiter=',')
+
+    results_train_full=np.array(results_train_full)
+    results_train_full = results_train_full.transpose()
+    np.savetxt(os.path.join(dirr,f'predicted_train_best_boot_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.csv') 
+                        ,results_train_full, delimiter=',')
+
 
     results_test=np.array(results_test)
     results_test = results_test.transpose()

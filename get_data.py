@@ -16,14 +16,16 @@ import click
 import h5py
 import wget
 import numpy as np
+
 from PIL import Image
 from scipy.io import loadmat
 from scipy.ndimage import gaussian_filter
+from skimage.transform import resize, downscale_local_mean
 
 
 @click.command()
 @click.option('--dataset',
-              type=click.Choice(['cell', 'mall', 'ucsd']),
+              type=click.Choice(['cell', 'mall', 'ucsd','nocover']),
               required=True)
 def get_data(dataset: str):
     """
@@ -32,9 +34,10 @@ def get_data(dataset: str):
     """
     # dictionary-based switch statement
     {
-        'cell': generate_cell_data,
-        'mall': generate_mall_data,
-        'ucsd': generate_ucsd_data
+        'cell':    generate_cell_data,
+        'mall':    generate_mall_data,
+        'ucsd':    generate_ucsd_data,
+        'nocover': generate_nocover_data
     }[dataset]()
 
 
@@ -111,6 +114,19 @@ def get_and_unzip(url: str, location: str="."):
     """
     dataset = wget.download(url)
     dataset = zipfile.ZipFile(dataset)
+    dataset.extractall(location)
+    dataset.close()
+    os.remove(dataset.filename)
+
+def get_and_unzip2(url: str, location: str="."):
+    """Extract a ZIP archive from given file path.
+
+    Args:
+        url: url of a ZIP file
+        location: target location to extract archive in
+    """
+    #dataset = wget.download(url)
+    dataset = zipfile.ZipFile(url,'r')
     dataset.extractall(location)
     dataset.close()
     os.remove(dataset.filename)
@@ -296,6 +312,86 @@ def generate_cell_data():
 
     # cleanup
     shutil.rmtree('cells')
+
+def generate_nocover_data():
+    """Generate HDF5 files for nocover microbiological dataset."""
+    # download and extract dataset
+   
+    #get_and_unzip2(
+    #    '/home/kgraczyk/hom0/dane/dots_resized_images_1000_900/train/train.zip',
+    #    location='nocover'
+    #)
+
+    #get_and_unzip2(
+    #    '/home/kgraczyk/hom0/dane/dots_resized_images_1000_900/validation.zip',
+    #    location='nocover'
+    #)
+ 
+
+    # create training and validation HDF5 files
+    train_h5, valid_h5 = create_hdf5('nocover',
+                                     train_size=3060,
+                                     valid_size=1310,
+                                     img_size=(250, 225),#img_size=(1000, 900),
+                                     in_channels=3)
+
+    # get the list of all samples
+    # dataset name convention: XXXcell.png (image) XXXdots.png (label)
+    image_list = glob(os.path.join('/home/kgraczyk/hom0/dane/dots_resized_images_1000_900/train', '*nocover.*'))
+    image_list.sort()
+
+    print(image_list)
+
+    def fill_h5(h5, images):
+        """
+        Save images and labels in given HDF5 file.
+
+        Args:
+            h5: HDF5 file
+            images: the list of images paths
+        """
+        for i, img_path in enumerate(images):
+            # get label path
+            label_path = img_path.replace('nocover.png', 'nocover_dots.png')
+            # get an image as numpy array
+            image0 = np.array(Image.open(img_path), dtype=np.float32) / 255
+            image = resize(image0,(250,225,3))
+            image = np.transpose(image, (2, 0, 1))
+
+            # convert a label image into a density map: dataset provides labels
+            # in the form on an image with red dots placed in objects position
+
+            # load an RGB image
+            #label = np.transpose(label, (2, 0, 1))
+
+
+            label = np.array(Image.open(label_path))
+            #s0=label.sum()
+            labelF = 4*4*downscale_local_mean(label,(4,4))
+            #s1 = labelF.sum())
+
+            #print('label = ',label.shape)
+            # make a one-channel label array with 100 in red dots positions
+            #label = 100.0 * (label[:, :] > 0)
+            # generate a density map by applying a Gaussian filter
+            labelF = gaussian_filter(labelF, sigma=(1, 1), order=0)
+            #s2 = labelF.sum()
+            #print("sum = ",s0,s0-s1,s0-s2)
+
+            # save data to HDF5 file
+            h5['images'][i] = image
+            h5['labels'][i, 0] = labelF
+
+    # use first 150 samples for training and the last 50 for validation
+    fill_h5(train_h5, image_list[:3000]) #3060
+    fill_h5(valid_h5, image_list[3000:])
+
+    # close HDF5 files
+    train_h5.close()
+    valid_h5.close()
+
+    # cleanup
+    #shutil.rmtree('nocover')
 
 if __name__ == '__main__':
     get_data()

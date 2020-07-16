@@ -15,7 +15,7 @@ from MC_DropOut import MC_DropOut, make_active_dropout
 
 @click.command()
 @click.option('-d', '--dataset_name',
-              type=click.Choice(['cell', 'mall', 'ucsd']),
+              type=click.Choice(['cell', 'mall', 'ucsd','nocover']),
               required=True,
               help='Dataset to train model on (expect proper HDF5 files).')
 @click.option('-n', '--network_architecture',
