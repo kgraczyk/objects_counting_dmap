@@ -36,7 +36,8 @@ def conv_block(channels: Tuple[int, int],
     )
     # create and return a sequential container of convolutional layers
     # input size = channels[0] for first block and channels[1] for all others
-    # useful feature: if the stride = (1,1), padding = (1,1) and kernel size = (3,3) than the output is still HxWx channels[1] in the other cases:
+    # useful feature: if the stride = (1,1), padding = (1,1) and kernel size = (3,3) 
+    # than the output is still HxWx channels[1] in the other cases:
     # H(eight) = (H - K + 2 P)//S + 1 similary W(idth) 
     return nn.Sequential(*[block(channels[bool(i)]) for i in range(N)])
 
@@ -303,11 +304,11 @@ class UNet(nn.Module):
         """Forward pass."""
         # use the same max pooling kernel size (2, 2) across the network
         pool = nn.MaxPool2d(2)
-
         # downsampling
         block1 = self.block1(input)
         pool1 = pool(block1)
         block2 = self.block2(pool1)
+        
         pool2 = pool(block2)
         block3 = self.block3(pool2)
         pool3 = pool(block3)
@@ -319,7 +320,81 @@ class UNet(nn.Module):
 
         # density prediction
         block7 = self.block7(block6)
-        return self.density_pred(block7)
+        wynik = self.density_pred(block7)
+         
+        return wynik
+
+class UNet2(nn.Module):
+    """
+    U-Net implementation.
+
+    Ref. O. Ronneberger et al. "U-net: Convolutional networks for biomedical
+    image segmentation."
+    """
+
+    def __init__(self, filters: int=64, input_filters: int=3, p: float=0.0, **kwargs):
+        """
+        Create U-Net model with:
+
+            * fixed kernel size = (3, 3)
+            * fixed max pooling kernel size = (2, 2) and upsampling factor = 2
+            * fixed no. of convolutional layers per block = 2 (see conv_block)
+            * constant no. of filters for convolutional layers
+
+        Args:
+            filters: no. of filters for convolutional layers
+            input_filters: no. of input channels
+        """
+        super(UNet2, self).__init__()
+        # first block channels size
+        initial_filters = (input_filters, filters)
+        # channels size for downsampling
+        down_filters = (filters, filters)
+        # channels size for upsampling (input doubled because of concatenate)
+        up_filters = (2 * filters, filters)
+
+        # downsampling
+        self.block1 = conv_block(channels=initial_filters, size=(3, 3), N=2)
+        self.block2 = conv_block(channels=down_filters, size=(3, 3), N=2)
+        self.block3 = conv_block(channels=down_filters, size=(3, 3), N=2)
+
+        # upsampling
+        self.block4 = ConvCat(channels=down_filters, size=(3, 3), N=2)
+        self.block5 = ConvCat(channels=up_filters, size=(3, 3), N=2)
+        self.block6 = ConvCat(channels=up_filters, size=(3, 3), N=2)
+
+        # density prediction
+        self.block7 = conv_block(channels=up_filters, size=(3, 3), N=2)
+        self.density_pred = nn.Conv2d(in_channels=filters, out_channels=1,
+                                      kernel_size=(1, 1), bias=False)
+    
+
+    def forward(self, input: torch.Tensor):
+        """Forward pass."""
+        # use the same max pooling kernel size (2, 2) across the network
+        pool = nn.MaxPool2d(2)
+        # downsampling
+        block1 = self.block1(input)
+        pool1 = pool(block1)
+        block2 = self.block2(pool1)
+        
+        pool2 = pool(block2)
+        block3 = self.block3(pool2)
+        pool3 = pool(block3)
+
+        # upsampling
+        block4 = self.block4(pool3, block3)
+        block5 = self.block5(block4, block2)
+        block6 = self.block6(block5, block1)
+
+        # density prediction
+        block7 = self.block7(block6)
+        wynik = self.density_pred(block7)
+
+        wynik = torch.log(1 + torch.exp(wynik))
+
+        return wynik
+
 
 class UNet_MVE(nn.Module):
     """
@@ -370,13 +445,17 @@ class UNet_MVE(nn.Module):
         """Forward pass."""
         # use the same max pooling kernel size (2, 2) across the network
         pool = nn.MaxPool2d(2)
-
         # downsampling
         block1 = self.block1(input)
+        print('block1 : ',pool.block1)
         pool1 = pool(block1)
         block2 = self.block2(pool1)
+        print('block2 : ',pool.block2)
+        
         pool2 = pool(block2)
         block3 = self.block3(pool2)
+        print('block3 : ',pool.block3)
+        
         pool3 = pool(block3)
 
         # upsampling
@@ -386,7 +465,10 @@ class UNet_MVE(nn.Module):
 
         # density prediction
         block7 = self.block7(block6)
-        return self.density_pred(block7)
+        wynik = self.density_pred(block7)
+       # print('wynik : ',wynik)
+         
+        return wynik
 
 
 
@@ -455,6 +537,80 @@ class UNet_MC(nn.Module):
         # density prediction
         block7 = self.drop(self.block7(block6))
         return self.density_pred(block7)
+
+
+
+class UNet2_MC(nn.Module):
+    """
+    U-Net implementation.
+
+    Ref. O. Ronneberger et al. "U-net: Convolutional networks for biomedical
+    image segmentation."
+    """
+
+    def __init__(self, filters: int=64, input_filters: int=3, p: float=0.0, **kwargs):
+        """
+        Create U-Net model with:
+
+            * fixed kernel size = (3, 3)
+            * fixed max pooling kernel size = (2, 2) and upsampling factor = 2
+            * fixed no. of convolutional layers per block = 2 (see conv_block)
+            * constant no. of filters for convolutional layers
+
+        Args:
+            filters: no. of filters for convolutional layers
+            input_filters: no. of input channels
+        """
+        super(UNet2_MC, self).__init__()
+        # first block channels size
+        initial_filters = (input_filters, filters)
+        # channels size for downsampling
+        down_filters = (filters, filters)
+        # channels size for upsampling (input doubled because of concatenate)
+        up_filters = (2 * filters, filters)
+        self.drop = nn.Dropout2d(p)
+        # downsampling
+        self.block1 = conv_block(channels=initial_filters, size=(3, 3), N=2)
+        self.block2 = conv_block(channels=down_filters, size=(3, 3), N=2)
+        self.block3 = conv_block(channels=down_filters, size=(3, 3), N=2)
+
+        # upsampling
+        self.block4 = ConvCat(channels=down_filters, size=(3, 3), N=2)
+        self.block5 = ConvCat(channels=up_filters, size=(3, 3), N=2)
+        self.block6 = ConvCat(channels=up_filters, size=(3, 3), N=2)
+
+        # density prediction
+        self.block7 = conv_block(channels=up_filters, size=(3, 3), N=2)
+        self.density_pred = nn.Conv2d(in_channels=filters, out_channels=1,
+                                      kernel_size=(1, 1), bias=False)
+
+    def forward(self, input: torch.Tensor):
+        """Forward pass."""
+        # use the same max pooling kernel size (2, 2) across the network
+        pool = nn.MaxPool2d(2)
+
+        # downsampling
+        block1 = self.drop(self.block1(input))
+        pool1 = pool(block1)
+        block2 = self.drop(self.block2(pool1))
+        pool2 = pool(block2)
+        block3 = self.drop(self.block3(pool2))
+        pool3 = pool(block3)
+
+        # upsampling
+        block4 = self.drop(self.block4(pool3, block3))
+        block5 = self.drop(self.block5(block4, block2))
+        block6 = self.drop(self.block6(block5, block1))
+
+        # density prediction
+        block7 = self.drop(self.block7(block6))
+
+        wynik = self.density_pred(block7)
+
+        wynik = torch.log(1 + torch.exp(wynik))
+
+        return wynik
+
 
 
 # --- PYTESTS --- #

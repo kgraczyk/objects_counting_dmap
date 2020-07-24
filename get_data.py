@@ -21,11 +21,12 @@ from PIL import Image
 from scipy.io import loadmat
 from scipy.ndimage import gaussian_filter
 from skimage.transform import resize, downscale_local_mean
+from skimage.color import rgb2hsv
 
 
 @click.command()
 @click.option('--dataset',
-              type=click.Choice(['cell', 'mall', 'ucsd','nocover']),
+              type=click.Choice(['cell', 'mall', 'ucsd','nocover','nocoverhsv']),
               required=True)
 def get_data(dataset: str):
     """
@@ -37,7 +38,8 @@ def get_data(dataset: str):
         'cell':    generate_cell_data,
         'mall':    generate_mall_data,
         'ucsd':    generate_ucsd_data,
-        'nocover': generate_nocover_data
+        'nocover': generate_nocover_data,
+        'nocoverhsv': generate_nocoverhsv_data
     }[dataset]()
 
 
@@ -293,9 +295,11 @@ def generate_cell_data():
 
             # load an RGB image
             label = np.array(Image.open(label_path))
+            #print(label.shape)
             # make a one-channel label array with 100 in red dots positions
             label = 100.0 * (label[:, :, 0] > 0)
             # generate a density map by applying a Gaussian filter
+            print(label.shape)
             label = gaussian_filter(label, sigma=(1, 1), order=0)
 
             # save data to HDF5 file
@@ -330,17 +334,20 @@ def generate_nocover_data():
 
     # create training and validation HDF5 files
     train_h5, valid_h5 = create_hdf5('nocover',
-                                     train_size=3060,
-                                     valid_size=1310,
-                                     img_size=(250, 225),#img_size=(1000, 900),
+                                     train_size=1530,
+                                     valid_size= 655, #1310,
+                                     img_size=(256, 256),#img_size=(1000, 900),
                                      in_channels=3)
 
     # get the list of all samples
     # dataset name convention: XXXcell.png (image) XXXdots.png (label)
-    image_list = glob(os.path.join('/home/kgraczyk/hom0/dane/dots_resized_images_1000_900/train', '*nocover.*'))
-    image_list.sort()
+    image_list1 = glob(os.path.join('/home/kgraczyk/hom0/dane/dots_resized_images_1000_900/train', '*nocover.*'))
+    image_list2 = glob(os.path.join('/home/kgraczyk/hom0/dane/dots_resized_images_1000_900/validation', '*nocover.*'))
+    
+    image_list1.sort()
+    image_list2.sort()
 
-    print(image_list)
+    #print(image_list)
 
     def fill_h5(h5, images):
         """
@@ -354,44 +361,119 @@ def generate_nocover_data():
             # get label path
             label_path = img_path.replace('nocover.png', 'nocover_dots.png')
             # get an image as numpy array
-            image0 = np.array(Image.open(img_path), dtype=np.float32) / 255
-            image = resize(image0,(250,225,3))
+            image = np.array(Image.open(img_path), dtype=np.float32) / 255 - 0.5
+            
+            image = resize(np.pad(image,((12,12),(62,62),(0,0))),(256,256,3))
             image = np.transpose(image, (2, 0, 1))
 
             # convert a label image into a density map: dataset provides labels
             # in the form on an image with red dots placed in objects position
 
             # load an RGB image
-            #label = np.transpose(label, (2, 0, 1))
 
+            label = np.array(Image.open(label_path)) /255.
+            s1  = label.sum()
+            if s1 > 560 : print(s1,label_path)
+            label = 4*4*downscale_local_mean(np.pad(label,((12,12),(62,62))),(4,4)) # bylo 4,4 
+            #s2  = label.sum()
 
-            label = np.array(Image.open(label_path))
-            #s0=label.sum()
-            labelF = 4*4*downscale_local_mean(label,(4,4))
-            #s1 = labelF.sum())
+            #print('s1-s2 = ',s1-s2)
 
-            #print('label = ',label.shape)
             # make a one-channel label array with 100 in red dots positions
-            #label = 100.0 * (label[:, :] > 0)
+            #print(label.shape)
+            label = 100.0 * (label[:, :] > 0)
+            #print(label.sum())
+            #print(label.shape)
             # generate a density map by applying a Gaussian filter
-            labelF = gaussian_filter(labelF, sigma=(1, 1), order=0)
-            #s2 = labelF.sum()
-            #print("sum = ",s0,s0-s1,s0-s2)
+            label = gaussian_filter(label, sigma=(1, 1), order=0)
+            #print(label.sum())
 
             # save data to HDF5 file
             h5['images'][i] = image
-            h5['labels'][i, 0] = labelF
+            h5['labels'][i, 0] = label
 
     # use first 150 samples for training and the last 50 for validation
-    fill_h5(train_h5, image_list[:3000]) #3060
-    fill_h5(valid_h5, image_list[3000:])
+    fill_h5(train_h5, image_list1) #3060
+    fill_h5(valid_h5, image_list2)
 
     # close HDF5 files
     train_h5.close()
     valid_h5.close()
 
-    # cleanup
-    #shutil.rmtree('nocover')
+def generate_nocoverhsv_data():
+    """Generate HDF5 files for nocoverjsv microbiological dataset."""
+   
+
+    # create training and validation HDF5 files
+    train_h5, valid_h5 = create_hdf5('nocoverhsv',
+                                     train_size=1530,
+                                     valid_size= 655, #1310,
+                                     img_size=(256, 256),#img_size=(1000, 900),
+                                     in_channels=3)
+
+    # get the list of all samples
+    # dataset name convention: XXXcell.png (image) XXXdots.png (label)
+    image_list1 = glob(os.path.join('/home/kgraczyk/hom0/dane/dots_resized_images_1000_900/train', '*nocover.*'))
+    image_list2 = glob(os.path.join('/home/kgraczyk/hom0/dane/dots_resized_images_1000_900/validation', '*nocover.*'))
+    
+    image_list1.sort()
+    image_list2.sort()
+
+    #print(image_list)
+
+    def fill_h5(h5, images):
+        """
+        Save images and labels in given HDF5 file.
+
+        Args:
+            h5: HDF5 file
+            images: the list of images paths
+        """
+        for i, img_path in enumerate(images):
+            # get label path
+            label_path = img_path.replace('nocover.png', 'nocover_dots.png')
+            # get an image as numpy array
+            image = np.array(Image.open(img_path), dtype=np.float32) 
+            image = rgb2hsv(image)/ 255
+            
+            image = resize(np.pad(image,((12,12),(62,62),(0,0))),(256,256,3))
+            image = np.transpose(image, (2, 0, 1))
+
+            # convert a label image into a density map: dataset provides labels
+            # in the form on an image with red dots placed in objects position
+
+            # load an RGB image
+
+            label = np.array(Image.open(label_path)) /255.
+            s1  = label.sum()
+            if s1 > 560 : print(s1,label_path)
+            label = 4*4*downscale_local_mean(np.pad(label,((12,12),(62,62))),(4,4)) # bylo 4,4 
+            #s2  = label.sum()
+
+            #print('s1-s2 = ',s1-s2)
+
+            # make a one-channel label array with 100 in red dots positions
+            #print(label.shape)
+            label = 100.0 * (label[:, :] > 0)
+            #print(label.sum())
+            #print(label.shape)
+            # generate a density map by applying a Gaussian filter
+            label = gaussian_filter(label, sigma=(1, 1), order=0)
+            #print(label.sum())
+
+            # save data to HDF5 file
+            h5['images'][i] = image
+            h5['labels'][i, 0] = label
+
+    # use first 150 samples for training and the last 50 for validation
+    fill_h5(train_h5, image_list1) #3060
+    fill_h5(valid_h5, image_list2)
+
+    # close HDF5 files
+    train_h5.close()
+    valid_h5.close()
+
+
 
 if __name__ == '__main__':
     get_data()

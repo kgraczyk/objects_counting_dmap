@@ -9,7 +9,7 @@ from matplotlib import pyplot
 
 from data_loader import H5Dataset
 from looper import Looper
-from model import UNet, UNet_MC, FCRN_A, FCRN_A_MC
+from model import UNet, UNet2, UNet2_MC, UNet_MC, FCRN_A, FCRN_A_MC
 from MC_DropOut import MC_DropOut, make_active_dropout
 
 
@@ -19,7 +19,7 @@ from MC_DropOut import MC_DropOut, make_active_dropout
               required=True,
               help='Dataset to train model on (expect proper HDF5 files).')
 @click.option('-n', '--network_architecture',
-              type=click.Choice(['UNet','UNet_MC', 'FCRN_A','FCRN_A_MC']),
+              type=click.Choice(['UNet','UNet2','UNet2_MC','UNet_MC', 'FCRN_A','FCRN_A_MC']),
               required=True,
               help='Model to train.')
 @click.option('-lr', '--learning_rate', default=1e-2,
@@ -74,6 +74,8 @@ def train(dataset_name: str,
     # initialize a model based on chosen network_architecture
     network = {
         'UNet': UNet,
+        'UNet2': UNet2,
+        'UNet2_MC': UNet2_MC,
         'UNet_MC': UNet_MC,
         'FCRN_A': FCRN_A,
         'FCRN_A_MC':FCRN_A_MC
@@ -115,6 +117,7 @@ def train(dataset_name: str,
                           dataloader['valid'], len(dataset['valid']), plots[1],False,
                           validation=True)
    
+    
     train_looper.LOG=True
     valid_looper.LOG=False
 
@@ -155,7 +158,7 @@ def train(dataset_name: str,
 
     print(f"[Training done] Best result: {current_best}")
 
-    print('hej-2')
+
 
     hist = np.array(train_looper.history)
     np.savetxt(f'hist_train_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}.csv' ,hist,delimiter=',')
@@ -166,11 +169,13 @@ def train(dataset_name: str,
     train_looper.plots = None
     train_looper.validation = True
     train_looper.LOG = False
+    train_looper.MC = True
     
     valid_looper.plots = None
     valid_looper.validation = True
     valid_looper.LOG = False
-    
+    valid_looper.MC = True
+
     NETname=network_architecture+'_'+prob_label
     DATAname = dataset_name + '_train_'
     train_looper.MCdropOut(100, NETname, DATAname )

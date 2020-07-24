@@ -63,28 +63,34 @@ class Looper():
          
         self.network.train(not self.validation)
         
+   
         #print("echo")
 
         if self.MC:
             for m in self.network.modules():
                 if m.__class__.__name__.startswith('Dropout'):
                     m.train() 
-        #print("echo2")
+   
 
+   
         for image, label in self.loader:
+            
             # move images and labels to given device
             image = image.to(self.device)
             label = label.to(self.device)
         
-            #print("echo3")
+           
             # clear accumulated gradient if in train mode
             if not self.validation:
                 if not self.MC:
                     self.optimizer.zero_grad()
-            #print("echo4")    
+            
             # get model prediction (a density map)
-            result = self.network(image)
+            
 
+            result = self.network(image)
+            
+        
             # calculate loss and update running loss
             loss = self.loss(result, label)
             self.running_loss[-1] += image.shape[0] * loss.item() / self.size
@@ -110,6 +116,8 @@ class Looper():
         # calculate errors and standard deviation
         self.update_errors()
 
+
+
         # update live plot
         if self.plots is not None:
             self.plot()
@@ -131,7 +139,7 @@ class Looper():
         self.mean_abs_err = sum(self.abs_err) / self.size
         self.std = np.array(self.err).std()
         temp  = [self.running_loss[-1], self.mean_err, self.mean_abs_err, self.std]
-        #print('temp = ', temp)
+  
         self.history.append(temp)
         
 
@@ -173,18 +181,13 @@ class Looper():
         self.LOG = False
         self.MC  = True
         
-        
-        
         self.run()
-        
 
         Predicted__values   = np.array(self.predicted_values)
         Predicted__values2  = np.power(Predicted__values,2)
 
-        print('hej')
-
         for _ in range(NN):
-            print('hej 0')
+            #print('hej 0')
             self.run()
             temp   = np.array(self.predicted_values)
             #print("NN = ",NN)
