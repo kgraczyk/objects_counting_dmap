@@ -385,7 +385,7 @@ def generate_nocover_data():
             #print(label.sum())
             #print(label.shape)
             # generate a density map by applying a Gaussian filter
-            label = gaussian_filter(label, sigma=(1, 1), order=0)
+            label = gaussian_filter(label, sigma=(2, 2), order=0)
             #print(label.sum())
 
             # save data to HDF5 file

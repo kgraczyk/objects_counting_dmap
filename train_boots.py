@@ -6,19 +6,20 @@ import click
 import torch
 import numpy as np
 from matplotlib import pyplot
+from pathlib import Path
 
 from data_loader import H5Dataset
 from looper import Looper
-from model import UNet,  FCRN_A
+from model import UNet, UNet2,  FCRN_A
 
 
 @click.command()
 @click.option('-d', '--dataset_name',
-              type=click.Choice(['cell', 'mall', 'ucsd']),
+              type=click.Choice(['cell', 'mall', 'ucsd','nocover']),
               required=True,
               help='Dataset to train model on (expect proper HDF5 files).')
 @click.option('-n', '--network_architecture',
-              type=click.Choice(['UNet', 'FCRN_A']),
+              type=click.Choice(['UNet','UNet2', 'FCRN_A']),
               required=True,
               help='Model to train.')
 @click.option('-lr', '--learning_rate', default=1e-2,
@@ -58,24 +59,6 @@ def train_boots(dataset_name: str,
     # only UCSD dataset provides greyscale images instead of RGB
     input_channels = 1 if dataset_name == 'ucsd' else 3
     
-    # initialize a model based on chosen network_architecture
-    network = {
-        'UNet': UNet,
-        'FCRN_A': FCRN_A,
-    }[network_architecture](input_filters=input_channels,
-                            filters=unet_filters,
-                            N=convolutions,p=0).to(device)
-    network = torch.nn.DataParallel(network)
-
-    # initialize loss, optimized and learning rate scheduler
-    loss = torch.nn.MSELoss()
-    optimizer = torch.optim.SGD(network.parameters(),
-                                lr=learning_rate,
-                                momentum=0.9,
-                                weight_decay=1e-5)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
-                                                   step_size=20,
-                                                   gamma=0.1)
     # prob
     epochs__          = 'epochs='+str(epochs)
     batch_size__      = 'batch='+str(batch_size)
@@ -84,7 +67,9 @@ def train_boots(dataset_name: str,
     unet_filters__    = 'uf=' + str(unet_filters)
     convolutions__    = "conv"+str(convolutions)
 
-    dirr = 'boots_results'    
+    dirr = 'boots_results_'+dataset_name
+
+    Path(dirr).mkdir(parents=True, exist_ok=True) 
 
     # if plot flag is on, create a live plot (to be updated by Looper)
     if plot:
@@ -111,7 +96,28 @@ def train_boots(dataset_name: str,
     results_train = []
     results_test = []
     
-    for i in range(2):
+    for i in range(20):
+        # initialize a model based on chosen network_architecture
+        network = {
+        'UNet': UNet,
+        'UNet2': UNet2,
+        'FCRN_A': FCRN_A,
+        }[network_architecture](input_filters=input_channels,
+                            filters=unet_filters,
+                            N=convolutions,p=0).to(device)
+        network = torch.nn.DataParallel(network)
+
+        # initialize loss, optimized and learning rate scheduler
+        loss = torch.nn.MSELoss()
+        optimizer = torch.optim.SGD(network.parameters(),
+                                lr=learning_rate,
+                                momentum=0.9,
+                                weight_decay=1e-5)
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
+                                                   step_size=20,
+                                                   gamma=0.1)
+    
+
         ntrain   = torch.randperm(n_samples)[:sampling_ratio]
         #print("xx ",np.sort(ntrain.numpy()))
         
