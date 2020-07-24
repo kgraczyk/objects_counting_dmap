@@ -1,4 +1,7 @@
-"""Main script used to train networks."""
+"""
+Main script used to train networks.
+The uncertainties are calculated in Mean Variance Approximation
+"""
 import os
 from typing import Union, Optional, List
 
@@ -8,18 +11,18 @@ import numpy as np
 from matplotlib import pyplot
 
 from data_loader import H5Dataset
-from looper import Looper
-from model import UNet, UNet2, UNet2_MC, UNet_MC, FCRN_A, FCRN_A_MC
-from MC_DropOut import MC_DropOut, make_active_dropout
+from looper_MVE import Looper
+from model import FCRN_A_MVE
+
 
 
 @click.command()
 @click.option('-d', '--dataset_name',
-              type=click.Choice(['cell', 'mall', 'ucsd','nocover','nocoverhsv']),
+              type=click.Choice(['cell', 'mall', 'ucsd']),
               required=True,
               help='Dataset to train model on (expect proper HDF5 files).')
 @click.option('-n', '--network_architecture',
-              type=click.Choice(['UNet','UNet2','UNet2_MC','UNet_MC', 'FCRN_A','FCRN_A_MC']),
+              type=click.Choice(['UNet_MVE', 'FCRN_A_MVE']),
               required=True,
               help='Model to train.')
 @click.option('-lr', '--learning_rate', default=1e-2,
@@ -35,12 +38,10 @@ from MC_DropOut import MC_DropOut, make_active_dropout
 @click.option('--unet_filters', default=64,
               help='Number of filters for U-Net convolutional layers.')
 @click.option('--convolutions', default=2,
-              help='Number of layers in a convolutional block.')
-@click.option('-p', '--dropout_prob',default=0.,
-              help='Probability in DropOut')              
+              help='Number of layers in a convolutional block.')             
 @click.option('--plot', is_flag=True, help="Generate a live plot.")
 
-def train(dataset_name: str,
+def train_MVE(dataset_name: str,
           network_architecture: str,
           learning_rate: float,
           epochs: int,
@@ -49,7 +50,6 @@ def train(dataset_name: str,
           vertical_flip: float,
           unet_filters: int,
           convolutions: int,
-          dropout_prob: float,
           plot: bool):
     """Train chosen model on selected dataset."""
     # use GPU if avilable
@@ -73,15 +73,11 @@ def train(dataset_name: str,
 
     # initialize a model based on chosen network_architecture
     network = {
-        'UNet': UNet,
-        'UNet2': UNet2,
-        'UNet2_MC': UNet2_MC,
-        'UNet_MC': UNet_MC,
-        'FCRN_A': FCRN_A,
-        'FCRN_A_MC':FCRN_A_MC
+#        'UNet': UNet,
+        'FCRN_A_MVE': FCRN_A_MVE
     }[network_architecture](input_filters=input_channels,
                             filters=unet_filters,
-                            N=convolutions,p=dropout_prob).to(device)
+                            N=convolutions).to(device)
     network = torch.nn.DataParallel(network)
 
     # initialize loss, optimized and learning rate scheduler
@@ -100,7 +96,7 @@ def train(dataset_name: str,
     vertical_flip__   = 'vf=' + str(vertical_flip)
     unet_filters__    = 'uf=' + str(unet_filters)
     convolutions__    = "conv"+str(convolutions)
-    prob_label        = 'p='+str(dropout_prob)
+   
 
     # if plot flag is on, create a live plot (to be updated by Looper)
     if plot:
@@ -111,13 +107,12 @@ def train(dataset_name: str,
 
     # create training and validation Loopers to handle a single epoch
     train_looper = Looper(network, device, loss, optimizer,
-                          dataloader['train'], len(dataset['train']), plots[0],False)
+                          dataloader['train'], len(dataset['train']), plots[0])
  
     valid_looper = Looper(network, device, loss, optimizer,
-                          dataloader['valid'], len(dataset['valid']), plots[1],False,
+                          dataloader['valid'], len(dataset['valid']), plots[1],
                           validation=True)
    
-    
     train_looper.LOG=True
     valid_looper.LOG=False
 
@@ -139,13 +134,13 @@ def train(dataset_name: str,
         if result < current_best:
             current_best = result
             torch.save(network.state_dict(),
-                       f'{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}.pth')
+                       f'{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.pth')
             hist = []
             hist.append(valid_looper.history[-1])
             hist.append(train_looper.history[-1])
             #hist = np.array(hist)
             #print(hist)
-            np.savetxt(f'hist_best_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}.csv' 
+            np.savetxt(f'hist_best_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.csv' 
                         ,hist, delimiter=',')
     
 
@@ -154,33 +149,17 @@ def train(dataset_name: str,
         print("\n", "-"*80, "\n", sep='')
         
         if plot:
-            fig.savefig(f'status_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}.png')
+            fig.savefig(f'status_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.png')
 
     print(f"[Training done] Best result: {current_best}")
 
-
+  
 
     hist = np.array(train_looper.history)
-    np.savetxt(f'hist_train_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}.csv' ,hist,delimiter=',')
+    np.savetxt(f'hist_train_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.csv' ,hist,delimiter=',')
     hist = np.array(valid_looper.history)
-    np.savetxt(f'hist_test_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}.csv' , hist,delimiter=',')
-
-
-    train_looper.plots = None
-    train_looper.validation = True
-    train_looper.LOG = False
-    train_looper.MC = True
+    np.savetxt(f'hist_test_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.csv' , hist,delimiter=',')
     
-    valid_looper.plots = None
-    valid_looper.validation = True
-    valid_looper.LOG = False
-    valid_looper.MC = True
-
-    NETname=network_architecture+'_'+prob_label
-    DATAname = dataset_name + '_train_'
-    train_looper.MCdropOut(100, NETname, DATAname )
-    DATAname = dataset_name + '_test_'
-    valid_looper.MCdropOut(100, NETname, DATAname )
 
 if __name__ == '__main__':
-    train()
+    train_MVE()
