@@ -45,40 +45,65 @@ def plot_input_and_map(data_,i):
     axes[1].imshow(label[:,:,0])
     fig.savefig(f'nocover-input-map-i={i}.png')
     
-def make_predictions(data_,i):
-    unet_filters = 64
-    convolutions = 4
-    p=0.1
+def make_predictions(i, file_path):
+    "Works for UNet type for FCRN_A check compatibility"    
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    input_channels = 3    # 1 if dataset_name == 'ucsd' else 3
-    network_architecture = 'UNet2'
+    
+    path = file_path.split('/')
+    path=path[-1]
+    names = path.split('_')
+
+
+    data_val = h5py.File(f'{names[0]}/valid.h5','r')
+    
+    input_channels = 1 if names[0] == 'ucsd' else 3
+    
+    
+    network_architecture = names[1]+'_MC' if names[2]=='MC' else  names[1]
+    if names[1] == 'FCRN': network_architecture = 'FCRN_A_MC' if names[3]=='MC' else  'FCRN_A'
+
+    p=float(names[-1].split('=')[-1][:3]) 
+    
+    unet_filters = int(names[-3][3:])
+    convolutions = int(names[-2][4:])
+
 
     network = {
             'UNet': UNet,
+            'UNet_MC': UNet_MC,
             'UNet2': UNet2,
+            'UNet2_MC': UNet2_MC,
             'FCRN_A': FCRN_A,
+            'FCRN_A_MC': FCRN_A_MC
             }[network_architecture](input_filters=input_channels,
                             filters=unet_filters,
                             N=convolutions,p=p).to(device)
 
-    path = f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth'
-
+    
     network = torch.nn.DataParallel(network)
-    network.load_state_dict(torch.load(path))
-    
-    image_ = data_['images'][i]
-    label = data_['labels'][i]
-    #image.unsqueeze(1)
-    
-    image =(torch.tensor(image_)).unsqueeze(0)
+    network.load_state_dict(torch.load(file_path))
 
-    pred = network(image.to(device))
+    network.eval()    
+    for m in network.modules():
+        if m.__class__.__name__.startswith('Dropout'):
+            m.train() 
+
+    image_ = data_val['images'][i]
+    label  = data_val['labels'][i]
+    
+    image = (torch.tensor(image_)).unsqueeze(0)
+    image = image.to(device)
+
+    pred = network(image)
     pred = pred.squeeze().to('cpu')
-
-    pred = pred.detach().numpy()
+    predf = pred.detach().numpy()
     
-    print('print',pred.shape)
+    for _ in range(19):
+        pred = network(image)
+        pred = pred.squeeze().to('cpu')
+        predf += pred.detach().numpy()
     
+    predf= predf/20.
 
     image_ = np.transpose(image_, (1, 2, 0))+0.5 #// 0.5 for nocover
     label = np.transpose(label, (1, 2, 0))
@@ -90,12 +115,14 @@ def make_predictions(data_,i):
     axes[1].set_title(f'human annotation, sum={label.sum()/100}')
     axes[1].imshow(label[:,:,0])
     axes[2].set_title(f'network-pred, sum={pred.sum()/100}')
-    axes[2].imshow(pred)
+    axes[2].imshow(predf)
     fig.savefig(f'nocover-map-pred-i={i}.png')
 
-make_predictions(data,10)
-make_predictions(data,100)
-make_predictions(data,200)
-make_predictions(data,300)
+make_predictions(10,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
+make_predictions(100,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
+make_predictions(200,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
+make_predictions(300,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
+make_predictions(400,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
+make_predictions(500,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
 
 plot_input_and_map(data,10)

@@ -156,6 +156,14 @@ ps= [0.0,0.1,0.2,0.3,0.4, 0.5, 0.6]
 #plot_history('results','ucsd','UNet_MC')
 
 
-plot_best_history('results','cell','FCRN_A_MC')
-plot_best_history('results','cell','UNet_MC')
-plot_best_history('results','ucsd','UNet_MC')
+#plot_best_history('results','cell','FCRN_A_MC')
+#plot_best_history('results','cell','UNet_MC')
+#plot_best_history('results','ucsd','UNet_MC')
+
+ps= [0.0,0.1,0.2,0.3,0.4, 0.5, 0.6]
+
+make_plots_with_errors(ps,'train','nocover',"UNet2","resutls-nocover")
+make_plots_with_errors(ps,'test','nocover',"UNet2","resutls-nocover")
+
+#plot_history('resutls-nocover','nocover','UNet2_MC')
+#plot_best_history('resutls-nocover','nocover','UNet2_MC')

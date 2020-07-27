@@ -96,7 +96,7 @@ def train_boots(dataset_name: str,
     results_train = []
     results_test = []
     
-    for i in range(5):
+    for i in range(20):
         # initialize a model based on chosen network_architecture
         network = {
         'UNet': UNet,
