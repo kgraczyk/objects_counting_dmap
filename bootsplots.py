@@ -13,10 +13,12 @@ def plot_history(folder_,data, net):
     begin_ = 'hist_test_boot_'+data+'_'+net+'_i='
     beginr_ = 'hist_train_boot_'+data+'_'+net+'_i='
 
+    print(begin_)
+
     filest = np.sort(np.asarray([join(folder_, f) for f in listdir(folder_) if isfile(join(folder_, f)) if f.startswith(begin_)]))
     filesr = np.sort(np.asarray([join(folder_, f) for f in listdir(folder_) if isfile(join(folder_, f)) if f.startswith(beginr_)]))
 
-    #print(filest)    
+    print(filest)    
 
     fig, axes = plt.subplots(1,2, figsize=(10,5))
     axes[0].set_title( net+', '+data+' validation set')
@@ -39,8 +41,38 @@ def plot_history(folder_,data, net):
     fig.savefig(f'history_boost_{data}_{net}.png')
 
 
-plot_history("boots_results/",'cell', 'UNet')
-plot_history("boots_results/",'ucsd', 'UNet')
+def plot_history2(folder_,data, net):
+    begin_ = 'hist_test_boot_i='
+    beginr_ = 'hist_train_boot_i='
+
+    print(begin_)
+
+    filest = np.sort(np.asarray([join(folder_, f) for f in listdir(folder_) if isfile(join(folder_, f)) if f.startswith(begin_)]))
+    filesr = np.sort(np.asarray([join(folder_, f) for f in listdir(folder_) if isfile(join(folder_, f)) if f.startswith(beginr_)]))
+
+    print(filest)    
+
+    fig, axes = plt.subplots(1,2, figsize=(10,5))
+    axes[0].set_title( net+', '+data+' validation set')
+    axes[1].set_title( net+', '+data+' train set')
+
+    for name in filest:
+        hist = np.genfromtxt(name, delimiter=",") 
+        axes[0].plot(np.arange(len(hist))+1, hist[:,0])
+    
+
+    for name in filesr:
+        hist = np.genfromtxt(name, delimiter=",") 
+        axes[1].plot(np.arange(len(hist))+1, hist[:,0] )
+
+    for i in range(2):
+        axes[i].set_yscale('log')
+        axes[i].set_xlabel('epochs')
+    
+    fig.tight_layout()
+    fig.savefig(f'history_boost_{data}_{net}.png')
+
+
 
 
 def calculate_prediction_mean_with_1sigma(folder_,filename):
@@ -61,11 +93,6 @@ def calculate_prediction_mean_with_1sigma(folder_,filename):
 
 
 
-calculate_prediction_mean_with_1sigma('boots_results','predicted_train_best_boot_cell_UNet_epochs=70_batch=8_hf=0.0_vf=0.0_uf=64_conv2.csv')
-calculate_prediction_mean_with_1sigma('boots_results','predicted_test_best_boot_cell_UNet_epochs=70_batch=8_hf=0.0_vf=0.0_uf=64_conv2.csv')
-
-calculate_prediction_mean_with_1sigma('boots_results','predicted_test_best_boot_ucsd_UNet_epochs=70_batch=5_hf=0.0_vf=0.0_uf=64_conv8.csv')
-calculate_prediction_mean_with_1sigma('boots_results','predicted_train_best_boot_ucsd_UNet_epochs=70_batch=5_hf=0.0_vf=0.0_uf=64_conv8.csv')
 
   
 #calculate_prediction_mean_with_1sigma('boots_results','predicted_train_best_boot_cell_UNet_epochs=70_batch=8_hf=0.0_vf=0.0_uf=64_conv2.csv')
@@ -114,6 +141,21 @@ def plot_predictions_with_uncertienty(folder_,data,net):
     fig.tight_layout()
     fig.savefig(f'averaged_boost_{data}_{net}.png')
 
+#plot_history("boots_results/",'cell', 'UNet')
+#plot_history("boots_results/",'ucsd', 'UNet')
+plot_history2("boots_results_nocover/",'nocover', 'UNet2')
 
-plot_predictions_with_uncertienty('boots_results/','cell','UNet')
-plot_predictions_with_uncertienty('boots_results/','ucsd','UNet')
+#calculate_prediction_mean_with_1sigma('boots_results','predicted_train_best_boot_cell_UNet_epochs=70_batch=8_hf=0.0_vf=0.0_uf=64_conv2.csv')
+#calculate_prediction_mean_with_1sigma('boots_results','predicted_test_best_boot_cell_UNet_epochs=70_batch=8_hf=0.0_vf=0.0_uf=64_conv2.csv')
+
+#calculate_prediction_mean_with_1sigma('boots_results','predicted_test_best_boot_ucsd_UNet_epochs=70_batch=5_hf=0.0_vf=0.0_uf=64_conv8.csv')
+#calculate_prediction_mean_with_1sigma('boots_results','predicted_train_best_boot_ucsd_UNet_epochs=70_batch=5_hf=0.0_vf=0.0_uf=64_conv8.csv')
+
+calculate_prediction_mean_with_1sigma('boots_results_nocover/','predicted_test_best_boot_nocover_UNet2_epochs=8_batch=7_hf=0.0_vf=0.0_uf=64_conv4.csv')  
+calculate_prediction_mean_with_1sigma('boots_results_nocover/','predicted_train_best_boot_nocover_UNet2_epochs=8_batch=7_hf=0.0_vf=0.0_uf=64_conv4.csv')
+
+
+#plot_predictions_with_uncertienty('boots_results/','cell','UNet')
+#plot_predictions_with_uncertienty('boots_results/','ucsd','UNet')
+plot_predictions_with_uncertienty('boots_results_nocover/','nocover','UNet2')
+

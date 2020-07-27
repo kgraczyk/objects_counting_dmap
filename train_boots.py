@@ -92,11 +92,11 @@ def train_boots(dataset_name: str,
     n_samples = len(dataset['train'])
         
     #print("******", n_samples)
-    sampling_ratio = int(0.69*n_samples)
+    sampling_ratio = int(0.63*n_samples)
     results_train = []
     results_test = []
     
-    for i in range(20):
+    for i in range(5):
         # initialize a model based on chosen network_architecture
         network = {
         'UNet': UNet,
@@ -129,6 +129,10 @@ def train_boots(dataset_name: str,
         dataloader['train'] = torch.utils.data.DataLoader(dataset['train'],
                                                        batch_size=batch_size,sampler=sampler)
 
+        dataloadertrain2 = torch.utils.data.DataLoader(dataset['train'],
+                                                       batch_size=batch_size)
+
+
         dataloader['valid'] = torch.utils.data.DataLoader(dataset['valid'],
                                                        batch_size=batch_size)
 
@@ -139,9 +143,15 @@ def train_boots(dataset_name: str,
         valid_looper = Looper(network, device, loss, optimizer,
                           dataloader['valid'], len(dataset['valid']), plots[1],False,
                           validation=True)
-   
+
+        train_looper2 = Looper(network, device, loss, optimizer,
+                          dataloadertrain2, len(dataloadertrain2), None, False,
+                          validation=True)
+
         train_looper.LOG=True
         valid_looper.LOG=False
+        train_looper2.LOG=False
+        
 
         # current best results (lowest mean absolute error on validation set)
         current_best = np.infty
@@ -156,6 +166,7 @@ def train_boots(dataset_name: str,
             # run validation epoch
             with torch.no_grad():
                 result = valid_looper.run()
+                train_looper2.run()
 
             # update checkpoint if new best is reached
             if result < current_best:
@@ -167,7 +178,7 @@ def train_boots(dataset_name: str,
                 hist.append(train_looper.history[-1])
                 #hist = np.array(hist)
                 #print(hist)
-                np.savetxt(os.path.join(dirr,f'hist_best_boot_i={i}_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.csv') 
+                np.savetxt(os.path.join(dirr,f'hist_best_boot_{dataset_name}_{network_architecture}_i={i}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.csv') 
                         ,hist, delimiter=',')
     
 
@@ -178,12 +189,15 @@ def train_boots(dataset_name: str,
             if plot:
                 fig.savefig(os.path.join(dirr,f'status_boot_i={i}_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.png'))
 
+            with torch.no_grad():
+                train_looper2.run()
+
         if i: 
-            results_train.append(train_looper.true_values)
+            results_train.append(train_looper2.true_values)
             results_test.append(valid_looper.true_values) 
 
 
-        results_train.append(train_looper.predicted_values)
+        results_train.append(train_looper2.predicted_values)
         results_test.append(valid_looper.predicted_values)
         
         
@@ -194,6 +208,8 @@ def train_boots(dataset_name: str,
         np.savetxt(os.path.join(dirr,f'hist_train_boot_i={i}_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.csv') ,hist,delimiter=',')
         hist = np.array(valid_looper.history)
         np.savetxt(os.path.join(dirr,f'hist_test_boot_i={i}_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.csv') , hist,delimiter=',')
+
+
 
     results_train=np.array(results_train)
     results_train = results_train.transpose()
