@@ -77,13 +77,14 @@ def plot_history2(folder_,data, net):
 
 def calculate_prediction_mean_with_1sigma(folder_,filename):
     res = np.genfromtxt(os.path.join(folder_,filename), delimiter=",")
+    #print('shape',res[:,0])
     res_temp=res[:,1:]
     MEAN = np.mean(res_temp, axis=1)
     VAR = np.var(res_temp, axis=1)
     VAR = np.sqrt(VAR)
     wyn = np.stack((MEAN,VAR))
     
-    wyn =  np.concatenate((wyn,np.array([res_temp[:,0]])))
+    wyn =  np.concatenate((wyn,np.array([res[:,0]])))
     
     wyn = wyn.transpose()
     print(wyn.shape)
@@ -143,7 +144,7 @@ def plot_predictions_with_uncertienty(folder_,data,net):
 
 #plot_history("boots_results/",'cell', 'UNet')
 #plot_history("boots_results/",'ucsd', 'UNet')
-plot_history2("boots_results_nocover/",'nocover', 'UNet2')
+#plot_history2("boots_results_nocover/",'nocover', 'UNet2')
 
 #calculate_prediction_mean_with_1sigma('boots_results','predicted_train_best_boot_cell_UNet_epochs=70_batch=8_hf=0.0_vf=0.0_uf=64_conv2.csv')
 #calculate_prediction_mean_with_1sigma('boots_results','predicted_test_best_boot_cell_UNet_epochs=70_batch=8_hf=0.0_vf=0.0_uf=64_conv2.csv')
@@ -151,8 +152,8 @@ plot_history2("boots_results_nocover/",'nocover', 'UNet2')
 #calculate_prediction_mean_with_1sigma('boots_results','predicted_test_best_boot_ucsd_UNet_epochs=70_batch=5_hf=0.0_vf=0.0_uf=64_conv8.csv')
 #calculate_prediction_mean_with_1sigma('boots_results','predicted_train_best_boot_ucsd_UNet_epochs=70_batch=5_hf=0.0_vf=0.0_uf=64_conv8.csv')
 
-calculate_prediction_mean_with_1sigma('boots_results_nocover/','predicted_test_best_boot_nocover_UNet2_epochs=8_batch=7_hf=0.0_vf=0.0_uf=64_conv4.csv')  
-calculate_prediction_mean_with_1sigma('boots_results_nocover/','predicted_train_best_boot_nocover_UNet2_epochs=8_batch=7_hf=0.0_vf=0.0_uf=64_conv4.csv')
+calculate_prediction_mean_with_1sigma('boots_results_nocover/','predicted_test_best_boot_nocover_UNet2_epochs=2_batch=7_hf=0.0_vf=0.0_uf=64_conv4.csv')  
+calculate_prediction_mean_with_1sigma('boots_results_nocover/','predicted_train_best_boot_nocover_UNet2_epochs=2_batch=7_hf=0.0_vf=0.0_uf=64_conv4.csv')
 
 
 #plot_predictions_with_uncertienty('boots_results/','cell','UNet')

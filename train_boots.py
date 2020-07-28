@@ -107,6 +107,8 @@ def train_boots(dataset_name: str,
                             N=convolutions,p=0).to(device)
         network = torch.nn.DataParallel(network)
 
+
+
         # initialize loss, optimized and learning rate scheduler
         loss = torch.nn.MSELoss()
         optimizer = torch.optim.SGD(network.parameters(),
@@ -119,10 +121,6 @@ def train_boots(dataset_name: str,
     
 
         ntrain   = torch.randperm(n_samples)[:sampling_ratio]
-        #print("xx ",np.sort(ntrain.numpy()))
-        
-
-        
 
         sampler=torch.utils.data.SubsetRandomSampler(ntrain)  
 
@@ -134,23 +132,15 @@ def train_boots(dataset_name: str,
 
 
         dataloader['valid'] = torch.utils.data.DataLoader(dataset['valid'],
-                                                       batch_size=batch_size)
+                                                       batch_size=1)
 
         # create training and validation Loopers to handle a single epoch
         train_looper = Looper(network, device, loss, optimizer,
                           dataloader['train'], len(dataset['train']), plots[0],False)
  
-        valid_looper = Looper(network, device, loss, optimizer,
-                          dataloader['valid'], len(dataset['valid']), plots[1],False,
-                          validation=True)
-
-        train_looper2 = Looper(network, device, loss, optimizer,
-                          dataloadertrain2, len(dataloadertrain2), None, False,
-                          validation=True)
+        
 
         train_looper.LOG=True
-        valid_looper.LOG=False
-        train_looper2.LOG=False
         
 
         # current best results (lowest mean absolute error on validation set)
@@ -160,21 +150,16 @@ def train_boots(dataset_name: str,
             print(f"Epoch {epoch + 1}\n")
 
             # run training epoch and update learning rate
-            train_looper.run()
+            result = train_looper.run()
             lr_scheduler.step()
-
-            # run validation epoch
-            with torch.no_grad():
-                result = valid_looper.run()
-                train_looper2.run()
 
             # update checkpoint if new best is reached
             if result < current_best:
-                current_best = result
+                #current_best = result
                 torch.save(network.state_dict(),
                        os.path.join(dirr,f'{dataset_name}_boot_i={i}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.pth'))
                 hist = []
-                hist.append(valid_looper.history[-1])
+                #hist.append(valid_looper.history[-1])
                 hist.append(train_looper.history[-1])
                 #hist = np.array(hist)
                 #print(hist)
@@ -189,14 +174,30 @@ def train_boots(dataset_name: str,
             if plot:
                 fig.savefig(os.path.join(dirr,f'status_boot_i={i}_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.png'))
 
-            with torch.no_grad():
-                train_looper2.run()
+        network.load_state_dict(torch.load(os.path.join(dirr,f'{dataset_name}_boot_i={i}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.pth')))
 
-        if i: 
+        valid_looper = Looper(network, device, loss, optimizer,
+                          dataloader['valid'], len(dataset['valid']), None, False,
+                          validation=True)
+
+        train_looper2 = Looper(network, device, loss, optimizer,
+                          dataloadertrain2, len(dataloadertrain2), None, False,
+                          validation=True)
+
+        valid_looper.LOG=False
+        train_looper2.LOG=False
+        valid_looper.MC=False
+        
+
+        with torch.no_grad():
+            valid_looper.run()
+            train_looper2.run()
+
+        if i==0: 
             results_train.append(train_looper2.true_values)
             results_test.append(valid_looper.true_values) 
 
-
+        
         results_train.append(train_looper2.predicted_values)
         results_test.append(valid_looper.predicted_values)
         
