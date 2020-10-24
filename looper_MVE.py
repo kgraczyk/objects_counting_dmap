@@ -57,15 +57,16 @@ class Looper():
             predicted_counts = torch.sum(predicted).item() / 100
                 
             #diff_ = torch.div(torch.pow(  0.01*torch.sub(torch.sum(true) , torch.sum(predicted)),2), torch.pow(sigma,2))
-            diff_ = torch.pow(  0.01*torch.sub(torch.sum(true) , torch.sum(predicted)),2)   
+            diff_ = torch.pow(  0.01*torch.sum(true- predicted),2)   
                 
-            print("4: ",loss)
                 
             # update current epoch results
             self.true_values.append(true_counts)
             self.predicted_values.append(predicted_counts)
           
             loss += (0.5* torch.mean(diff_) + torch.mean(torch.log(sigma)))
+            print("4: ",loss, sigma)
+
         return loss+ 0.01
 
     def run(self):
@@ -92,7 +93,7 @@ class Looper():
             label = label.to(self.device)
         
             
-            #print("echo3")
+ 
             # clear accumulated gradient if in train mode
             if not self.validation:
                 self.optimizer.zero_grad()
@@ -101,7 +102,7 @@ class Looper():
             result, sigma = self.network(image)
             
             # loop over batch samples
-            loss = self.NNL(label,result, sigma)           
+            loss = self.loss(result, label) + self.size * self.NNL(label,result, sigma)/image.shape[0]           
            
             # calculate loss and update running loss 
             self.running_loss[-1] += image.shape[0] * loss.item() / self.size
@@ -109,7 +110,7 @@ class Looper():
             # update weights if in train mode
             if not self.validation:
                 loss.backward()
-                #print('hey',loss.grad())
+                
                 self.optimizer.step()
                 self.optimizer.zero_grad()
                

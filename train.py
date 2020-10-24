@@ -86,6 +86,7 @@ def train(dataset_name: str,
 
     # initialize loss, optimized and learning rate scheduler
     loss = torch.nn.MSELoss()
+    #loss = torch.nn.L1Loss()
     optimizer = torch.optim.SGD(network.parameters(),
                                 lr=learning_rate,
                                 momentum=0.9,

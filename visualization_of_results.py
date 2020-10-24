@@ -131,15 +131,34 @@ def make_predictions(i, file_path):
     label = np.transpose(label, (1, 2, 0))
     
     #print(image.shape)
-    fig, axes = plt.subplots(1, 4, figsize=(20, 5))
+    fig, axes = plt.subplots(1, 4, figsize=(18, 5))
     axes[0].set_title('true')
     axes[0].imshow((image_ * 255).astype(np.uint8))
+    
     axes[1].set_title(f'human annotation, sum={label.sum()/100}')
-    axes[1].imshow(label[:,:,0])
+    z=axes[1].imshow(label[:,:,0],extent=(0,256,0,256),cmap=cm.binary)
+    divider = make_axes_locatable(axes[1])
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    fig.colorbar(z,cax=cax)
+    
     axes[2].set_title(f'drop out, p={p}, sum={suma/100:3.1f}$\pm${suma2/100:1.1f}')
-    axes[2].imshow(predf)
+    z=axes[2].imshow(predf,extent=(0,256,0,256),cmap=cm.binary)
+    divider = make_axes_locatable(axes[2])
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    fig.colorbar(z,cax=cax)
+    
     axes[3].set_title(f'uncertainty')
-    axes[3].imshow(predf2)
+    z=axes[3].imshow(predf2,extent=(0,256,0,256),cmap=cm.binary)
+    divider = make_axes_locatable(axes[3])
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    fig.colorbar(z,cax=cax)
+    
+    for ax in axes:
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+    
+
+
     fig.savefig(f'nocover-map-pred-i={i}.png')
 
 
@@ -227,14 +246,16 @@ def make_predictions_boots(folder_,i):
     fig, axes = plt.subplots(1, 4, figsize=(18, 5))
     axes[0].set_title('true')
     axes[0].imshow((image_ * 255).astype(np.uint8))
-    
-    axes[1].set_title(f'human annotation, sum={label.sum()/100}')
+    #divider = make_axes_locatable(axes[0])
+    #cax = divider.append_axes("right", size="5%", pad=0.05)
+
+    axes[1].set_title(f'human annotation, sum={label.sum()/100:2.1f}')
     z=axes[1].imshow(label[:,:,0],extent=(0,256,0,256),cmap=cm.binary)
     divider = make_axes_locatable(axes[1])
     cax = divider.append_axes("right", size="5%", pad=0.05)
     fig.colorbar(z,cax=cax)
 
-    axes[2].set_title(f'bootstrap, sum={suma:3.1f}$\pm${suma2:1.1f}')
+    axes[2].set_title(f'bootstrap, sum={suma:3.1f}$\pm${suma2:2.1f}')
     z=axes[2].imshow(predf,extent=(0,256,0,256),cmap=cm.binary)
     divider = make_axes_locatable(axes[2])
     cax = divider.append_axes("right", size="5%", pad=0.05)
@@ -258,12 +279,17 @@ def make_predictions_boots(folder_,i):
     fig.tight_layout()
 
 
-#make_predictions(10,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
-#make_predictions(100,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
-#make_predictions(200,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
-#make_predictions(300,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
-#make_predictions(400,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
-#make_predictions(500,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
+make_predictions(10,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
+make_predictions(100,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
+make_predictions(200,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
+make_predictions(300,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
+make_predictions(400,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
+make_predictions(500,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
+make_predictions(150,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
+make_predictions(250,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
+make_predictions(350,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
+make_predictions(450,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
+make_predictions(550,f'resutls-nocover/nocover_UNet2_MC_epochs=100_batch=7_hf=0.0_vf=0.0_uf=64_conv4_p=0.1.pth')
 
 
 make_predictions_boots('boots_results_nocover',10)
@@ -272,4 +298,10 @@ make_predictions_boots('boots_results_nocover',200)
 make_predictions_boots('boots_results_nocover',300)
 make_predictions_boots('boots_results_nocover',400)
 make_predictions_boots('boots_results_nocover',500)
+make_predictions_boots('boots_results_nocover',150)
+make_predictions_boots('boots_results_nocover',250)
+make_predictions_boots('boots_results_nocover',350)
+make_predictions_boots('boots_results_nocover',450)
+make_predictions_boots('boots_results_nocover',550)
+
 #plot_input_and_map(data,10)

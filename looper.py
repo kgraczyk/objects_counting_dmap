@@ -68,8 +68,7 @@ class Looper():
 
         if self.MC:
             for m in self.network.modules():
-                if m.__class__.__name__.startswith('Dropout'):
-                    m.train() 
+                if m.__class__.__name__.startswith('Dropout'): m.train() 
    
 
    

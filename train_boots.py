@@ -155,7 +155,7 @@ def train_boots(dataset_name: str,
 
             # update checkpoint if new best is reached
             if result < current_best:
-                #current_best = result
+                current_best = result
                 torch.save(network.state_dict(),
                        os.path.join(dirr,f'{dataset_name}_boot_i={i}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}.pth'))
                 hist = []
