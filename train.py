@@ -45,7 +45,7 @@ from MC_DropOut import MC_DropOut, make_active_dropout
 def train(dataset_name: str,
           network_architecture: str,
           learning_rate: float,
-          wd: float,
+          weight_decay: float,
           epochs: int,
           batch_size: int,
           horizontal_flip: float,
@@ -93,7 +93,7 @@ def train(dataset_name: str,
     optimizer = torch.optim.SGD(network.parameters(),
                                 lr=learning_rate,
                                 momentum=0.9,
-                                weight_decay=wd) #1e-5
+                                weight_decay=weight_decay) #1e-5
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
                                                    step_size=20,
                                                    gamma=0.1)
@@ -105,7 +105,7 @@ def train(dataset_name: str,
     unet_filters__    = 'uf=' + str(unet_filters)
     convolutions__    = "conv"+str(convolutions)
     prob_label        = 'p='+str(dropout_prob)
-    weightdecay__     = "wd="+str(wd)
+    weightdecay__     = "wd="+str(weight_decay)
 
     # if plot flag is on, create a live plot (to be updated by Looper)
     if plot:
