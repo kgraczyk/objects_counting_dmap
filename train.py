@@ -24,6 +24,8 @@ from MC_DropOut import MC_DropOut, make_active_dropout
               help='Model to train.')
 @click.option('-lr', '--learning_rate', default=1e-2,
               help='Initial learning rate (lr_scheduler is applied).')
+@click.option('-wd', '--weight_decay', default=1e-5,
+              help='weight decay')
 @click.option('-e', '--epochs', default=150, help='Number of training epochs.')
 
 @click.option('--batch_size', default=8,
@@ -90,7 +92,7 @@ def train(dataset_name: str,
     optimizer = torch.optim.SGD(network.parameters(),
                                 lr=learning_rate,
                                 momentum=0.9,
-                                weight_decay=1e-5)
+                                weight_decay=wd) #1e-5
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
                                                    step_size=20,
                                                    gamma=0.1)
@@ -102,6 +104,7 @@ def train(dataset_name: str,
     unet_filters__    = 'uf=' + str(unet_filters)
     convolutions__    = "conv"+str(convolutions)
     prob_label        = 'p='+str(dropout_prob)
+    weightdecay__     = "wd="+str(wd)
 
     # if plot flag is on, create a live plot (to be updated by Looper)
     if plot:
@@ -140,13 +143,13 @@ def train(dataset_name: str,
         if result < current_best:
             current_best = result
             torch.save(network.state_dict(),
-                       f'{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}.pth')
+                       f'{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}_{weightdecay__}.pth')
             hist = []
             hist.append(valid_looper.history[-1])
             hist.append(train_looper.history[-1])
             #hist = np.array(hist)
             #print(hist)
-            np.savetxt(f'hist_best_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}.csv' 
+            np.savetxt(f'hist_best_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}_{weightdecay__}.csv' 
                         ,hist, delimiter=',')
     
 
@@ -155,16 +158,16 @@ def train(dataset_name: str,
         print("\n", "-"*80, "\n", sep='')
         
         if plot:
-            fig.savefig(f'status_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}.png')
+            fig.savefig(f'status_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}_{weightdecay__}.png')
 
     print(f"[Training done] Best result: {current_best}")
 
 
 
     hist = np.array(train_looper.history)
-    np.savetxt(f'hist_train_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}.csv' ,hist,delimiter=',')
+    np.savetxt(f'hist_train_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}_{weightdecay__}.csv' ,hist,delimiter=',')
     hist = np.array(valid_looper.history)
-    np.savetxt(f'hist_test_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}.csv' , hist,delimiter=',')
+    np.savetxt(f'hist_test_{dataset_name}_{network_architecture}_{epochs__}_{batch_size__}_{horizontal_flip__}_{vertical_flip__}_{unet_filters__}_{convolutions__}_{prob_label}_{weightdecay__}.csv' , hist,delimiter=',')
 
 
     train_looper.plots = None
@@ -177,7 +180,7 @@ def train(dataset_name: str,
     valid_looper.LOG = False
     valid_looper.MC = True
 
-    NETname=network_architecture+'_'+prob_label
+    NETname=network_architecture + '_' + prob_label + '_' + weightdecay__
     DATAname = dataset_name + '_train_'
     train_looper.MCdropOut(100, NETname, DATAname )
     DATAname = dataset_name + '_test_'
