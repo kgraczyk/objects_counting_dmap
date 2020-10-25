@@ -45,6 +45,7 @@ from MC_DropOut import MC_DropOut, make_active_dropout
 def train(dataset_name: str,
           network_architecture: str,
           learning_rate: float,
+          wd: float,
           epochs: int,
           batch_size: int,
           horizontal_flip: float,
